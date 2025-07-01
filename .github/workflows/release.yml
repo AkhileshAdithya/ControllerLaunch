@@ -153,13 +153,17 @@ jobs:
 
       - name: Create Git Tag
         env:
-          TOKEN: ${{ secrets.GH_PAT_CL }}
+          GH_TOKEN: ${{ secrets.GH_PAT_CL }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "action@github.com"
-          git remote set-url origin https://x-access-token:${TOKEN}@github.com/${{ github.repository }}
-          
-          git tag -f ${{ steps.version.outputs.version }}
+          git remote set-url origin https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}
+
+          # Delete local tag if exists (to avoid duplicate error)
+          git tag -d ${{ steps.version.outputs.version }} 2>/dev/null || true
+
+          # Create and push tag
+          git tag ${{ steps.version.outputs.version }}
           git push origin ${{ steps.version.outputs.version }} --force
 
       - name: Create Release
