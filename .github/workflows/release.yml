@@ -36,6 +36,7 @@ jobs:
       - name: Install Python dependencies
         run: |
           pip install -r requirements.txt
+          find "${APPIMAGE_DIR}/usr/lib/python3.8/site-packages/pygame.libs/" -name "libpulsecommon-*.so" -delete || true
 
       - name: Calculate version
         id: version
