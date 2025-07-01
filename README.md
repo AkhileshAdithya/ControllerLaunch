@@ -1,5 +1,7 @@
 # ControllerLaunch
 
+[![Build and Release AppImage](https://github.com/user/ControllerLaunch/workflows/Build%20and%20Release%20AppImage/badge.svg)](https://github.com/user/ControllerLaunch/actions)
+
 A GTK3 game launcher for Linux that can be navigated using Xbox or PS5 controllers (xinput).
 
 ## Features
@@ -89,8 +91,30 @@ ControllerLaunch/
 ├── config/           # Configuration files
 ├── install/          # Installation files
 ├── packaging/        # Packaging scripts
+├── .github/          # GitHub Actions workflows
 └── requirements.txt  # Python dependencies
 ```
+
+### CI/CD Pipeline
+
+This project uses GitHub Actions for continuous integration and delivery:
+
+1. **Automated Builds**: Every commit to the master branch automatically triggers a build of the AppImage.
+2. **Automatic Versioning**: Version numbers are automatically incremented based on commit messages:
+   - Major version bump: Commits containing "BREAKING CHANGE"
+   - Minor version bump: Commits containing "feat" or "feature" 
+   - Patch version bump: All other commits
+3. **Release Artifacts**: Each successful build automatically:
+   - Creates a GitHub release with the new version
+   - Uploads the AppImage as a release asset
+   - Generates source code archives (.tar.gz and .zip)
+   - Generates checksums for verification
+4. **Pull Request Validation**: PRs are automatically validated for:
+   - Build success
+   - Code syntax validation
+   - Module structure validation
+
+Contributors can view build status on the GitHub Actions tab.
 
 ## License
 

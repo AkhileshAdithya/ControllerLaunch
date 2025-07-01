@@ -1,0 +1,182 @@
+name: Build and Release AppImage
+
+on:
+  push:
+    branches: [ master, main ]
+  workflow_dispatch:
+    inputs:
+      version_override:
+        description: 'Override version (leave blank for auto)'
+        required: false
+        type: string
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Fetch all history for proper versioning
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.8'
+          cache: 'pip'
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-gi python3-gi-cairo gir1.2-gtk-3.0 \
+            libcairo2-dev pkg-config python3-dev wget fakeroot \
+            libgtk-3-dev libglib2.0-dev libpango1.0-dev
+
+      - name: Install Python dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Calculate version
+        id: version
+        run: |
+          if [[ -n "${{ github.event.inputs.version_override }}" ]]; then
+            # Use manual override if provided
+            VERSION="${{ github.event.inputs.version_override }}"
+          else
+            # Try to get the latest tag
+            LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+            
+            # Extract components
+            MAJOR=$(echo $LATEST_TAG | sed -E 's/v([0-9]+)\..*/\1/')
+            MINOR=$(echo $LATEST_TAG | sed -E 's/v[0-9]+\.([0-9]+)\..*/\1/')
+            PATCH=$(echo $LATEST_TAG | sed -E 's/v[0-9]+\.[0-9]+\.([0-9]+).*/\1/')
+            
+            # Check commit messages for version bump indicators
+            if git log --format=%B -n 50 | grep -q 'BREAKING CHANGE'; then
+              # Major version bump for breaking changes
+              MAJOR=$((MAJOR + 1))
+              MINOR=0
+              PATCH=0
+            elif git log --format=%B -n 20 | grep -q -E 'feat|feature|enhancement'; then
+              # Minor version bump for new features
+              MINOR=$((MINOR + 1))
+              PATCH=0
+            else
+              # Patch version bump for fixes and others
+              PATCH=$((PATCH + 1))
+            fi
+            
+            VERSION="v$MAJOR.$MINOR.$PATCH"
+          fi
+          
+          # Set the version as output and environment variable
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          
+          # Create a tag name that doesn't have a 'v' prefix for the AppImage filename
+          TAG_NAME="${VERSION#v}"
+          echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+
+      - name: Build AppImage
+        run: |
+          # Set build environment variables
+          export VERSION="${{ steps.version.outputs.tag_name }}"
+          
+          # Create build directory
+          mkdir -p build
+          
+          # Run the build script
+          bash packaging/build_appimage.sh
+          
+          # Rename the AppImage to include the version
+          mv ControllerLaunch-*.AppImage "ControllerLaunch-$VERSION-x86_64.AppImage" || true
+          
+          # Make it executable
+          chmod +x ControllerLaunch-*.AppImage
+
+      - name: Generate checksums
+        run: |
+          # Create checksum file
+          echo "# ControllerLaunch ${{ steps.version.outputs.version }}" > checksums.txt
+          echo "# Generated on $(date)" >> checksums.txt
+          echo "" >> checksums.txt
+          
+          # Generate SHA256 checksums
+          echo "## SHA256 Checksums" >> checksums.txt
+          sha256sum ControllerLaunch-*.AppImage >> checksums.txt
+          
+          # Generate MD5 checksums
+          echo "" >> checksums.txt
+          echo "## MD5 Checksums" >> checksums.txt
+          md5sum ControllerLaunch-*.AppImage >> checksums.txt
+
+      - name: Create source archive
+        run: |
+          # Create source archives without the .git directory and build artifacts
+          git archive --format=tar.gz --prefix=ControllerLaunch-${{ steps.version.outputs.tag_name }}/ HEAD -o "ControllerLaunch-${{ steps.version.outputs.tag_name }}-source.tar.gz"
+          git archive --format=zip --prefix=ControllerLaunch-${{ steps.version.outputs.tag_name }}/ HEAD -o "ControllerLaunch-${{ steps.version.outputs.tag_name }}-source.zip"
+          
+          # Add checksums for source archives
+          echo "" >> checksums.txt
+          echo "## Source Archives" >> checksums.txt
+          sha256sum ControllerLaunch-*-source.tar.gz >> checksums.txt
+          sha256sum ControllerLaunch-*-source.zip >> checksums.txt
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          # Get the previous tag
+          PREVIOUS_TAG=$(git describe --tags --abbrev=0 ${{ steps.version.outputs.version }}^ 2>/dev/null || echo "")
+          
+          if [[ -n "$PREVIOUS_TAG" ]]; then
+            # Generate changelog from previous tag
+            echo "# Changes since $PREVIOUS_TAG" > CHANGELOG.md
+            git log --pretty=format:"* %s (%h)" $PREVIOUS_TAG..${{ github.sha }} >> CHANGELOG.md
+          else
+            # Generate changelog from the beginning
+            echo "# Initial Release" > CHANGELOG.md
+            git log --pretty=format:"* %s (%h)" >> CHANGELOG.md
+          fi
+          
+          # Convert changelog to a format suitable for the GitHub release body
+          CHANGELOG=$(cat CHANGELOG.md)
+          CHANGELOG="${CHANGELOG//'%'/'%25'}"
+          CHANGELOG="${CHANGELOG//$'\n'/'%0A'}"
+          CHANGELOG="${CHANGELOG//$'\r'/'%0D'}"
+          
+          echo "changelog=$CHANGELOG" >> $GITHUB_OUTPUT
+
+      - name: Create Git Tag
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git tag -f ${{ steps.version.outputs.version }}
+          git push origin ${{ steps.version.outputs.version }} --force
+
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.version.outputs.version }}
+          name: ControllerLaunch ${{ steps.version.outputs.version }}
+          body: |
+            # ControllerLaunch ${{ steps.version.outputs.version }}
+            
+            Auto-generated release from GitHub Actions CI.
+            
+            ${{ steps.changelog.outputs.changelog }}
+            
+            ## Downloads
+            
+            - AppImage: `ControllerLaunch-${{ steps.version.outputs.tag_name }}-x86_64.AppImage`
+            - Source (tar.gz): `ControllerLaunch-${{ steps.version.outputs.tag_name }}-source.tar.gz`
+            - Source (zip): `ControllerLaunch-${{ steps.version.outputs.tag_name }}-source.zip`
+            
+            Checksums are available in the checksums.txt file.
+          draft: false
+          prerelease: false
+          files: |
+            ControllerLaunch-*.AppImage
+            ControllerLaunch-*-source.tar.gz
+            ControllerLaunch-*-source.zip
+            checksums.txt
