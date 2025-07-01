@@ -30,29 +30,28 @@ chmod +x "${APPIMAGE_DIR}/AppRun"
 cp "${APP_DIR}/install/controller-launch.desktop" "${APPIMAGE_DIR}/usr/share/applications/"
 cp "${APP_DIR}/install/controller-launch.desktop" "${APPIMAGE_DIR}/"
 
-# Copy icon
-if [ -f "${APP_DIR}/assets/icons/controller-launch.png" ]; then
-    cp "${APP_DIR}/assets/icons/controller-launch.png" "${APPIMAGE_DIR}/usr/share/icons/hicolor/256x256/apps/"
-    cp "${APP_DIR}/assets/icons/controller-launch.png" "${APPIMAGE_DIR}/"
+# Copy manually converted PNG icon
+ICON_PATH="${APP_DIR}/assets/icons/controller-launch.png"
+if [ -f "$ICON_PATH" ]; then
+    echo "Copying icon from $ICON_PATH"
+    cp "$ICON_PATH" "${APPIMAGE_DIR}/usr/share/icons/hicolor/256x256/apps/"
+    cp "$ICON_PATH" "${APPIMAGE_DIR}/"
 else
-    echo "Warning: Icon not found at ${APP_DIR}/assets/icons/controller-launch.png"
+    echo "Warning: PNG icon not found at ${ICON_PATH}"
 fi
 
 # Install Python dependencies into AppDir
 echo "Installing Python dependencies..."
 python3 -m pip install --ignore-installed --prefix="${APPIMAGE_DIR}/usr" --no-warn-script-location -r "${APP_DIR}/requirements.txt"
 
-# Check for runtime dependencies (but don't install automatically)
+# Check for runtime dependencies
 echo "Checking runtime dependencies..."
 MISSING_DEPS=0
 
 if command -v apt-get &> /dev/null; then
-    # For Debian-based systems
     echo "Detected Debian-based system"
     TYPELIB_PATH="/usr/lib/x86_64-linux-gnu/girepository-1.0"
     PACKAGES="python3-gi python3-gi-cairo gir1.2-gtk-3.0 libcairo2-dev pkg-config python3-dev"
-    
-    # Check if needed packages are installed
     for pkg in $PACKAGES; do
         if ! dpkg -l | grep -q "$pkg"; then
             echo "Missing package: $pkg"
@@ -60,12 +59,9 @@ if command -v apt-get &> /dev/null; then
         fi
     done
 elif command -v pacman &> /dev/null; then
-    # For Arch-based systems
     echo "Detected Arch-based system"
     TYPELIB_PATH="/usr/lib/girepository-1.0"
     PACKAGES="python-gobject python-cairo gtk3"
-    
-    # Check if needed packages are installed
     for pkg in $PACKAGES; do
         if ! pacman -Q "$pkg" &> /dev/null; then
             echo "Missing package: $pkg"
@@ -74,7 +70,6 @@ elif command -v pacman &> /dev/null; then
     done
 else
     echo "Warning: Unsupported distribution. Build may fail."
-    # Try to guess typelib path
     for path in "/usr/lib/girepository-1.0" "/usr/lib/x86_64-linux-gnu/girepository-1.0" "/usr/lib64/girepository-1.0"; do
         if [ -d "$path" ]; then
             TYPELIB_PATH="$path"
@@ -85,11 +80,7 @@ fi
 
 if [ $MISSING_DEPS -gt 0 ]; then
     echo "Warning: Missing dependencies detected."
-    if command -v apt-get &> /dev/null; then
-        echo "You can install them with: sudo apt-get install $PACKAGES"
-    elif command -v pacman &> /dev/null; then
-        echo "You can install them with: sudo pacman -S $PACKAGES"
-    fi
+    echo "You can install them with: sudo apt-get install $PACKAGES"
     read -p "Continue anyway? (y/n) " -n 1 -r
     echo
     if [[ ! $REPLY =~ ^[Yy]$ ]]; then
@@ -98,44 +89,25 @@ if [ $MISSING_DEPS -gt 0 ]; then
     fi
 fi
 
-# Find and copy system libraries and GObject introspection files
+# Copy .typelib files
 echo "Copying system libraries and GObject introspection files..."
 mkdir -p "${APPIMAGE_DIR}/usr/lib/girepository-1.0"
-
-# Function to find and copy typelib files
 copy_typelib() {
     local name=$1
-    local found=false
-    
-    # Try to find typelib in the detected path
-    if [ -f "${TYPELIB_PATH}/${name}.typelib" ]; then
-        cp "${TYPELIB_PATH}/${name}.typelib" "${APPIMAGE_DIR}/usr/lib/girepository-1.0/"
-        found=true
-    else
-        # Try alternative locations
-        for path in /usr/lib/girepository-1.0 /usr/lib/x86_64-linux-gnu/girepository-1.0 /usr/lib64/girepository-1.0; do
-            if [ -f "${path}/${name}.typelib" ]; then
-                cp "${path}/${name}.typelib" "${APPIMAGE_DIR}/usr/lib/girepository-1.0/"
-                found=true
-                break
-            fi
-        done
-    fi
-    
-    # Report if not found
-    if [ "$found" = false ]; then
-        echo "Warning: Could not find ${name}.typelib"
-    else
-        echo "Found and copied: ${name}.typelib"
-    fi
+    for path in "$TYPELIB_PATH" /usr/lib/girepository-1.0 /usr/lib64/girepository-1.0; do
+        if [ -f "${path}/${name}.typelib" ]; then
+            cp "${path}/${name}.typelib" "${APPIMAGE_DIR}/usr/lib/girepository-1.0/"
+            echo "Found and copied: ${name}.typelib"
+            return
+        fi
+    done
+    echo "Warning: Could not find ${name}.typelib"
 }
-
-# Copy required typelib files
 for typelib in Gtk-3.0 GLib-2.0 Gdk-3.0 GdkPixbuf-2.0 Pango-1.0 cairo-1.0; do
     copy_typelib $typelib
 done
 
-# Download and use linuxdeploy to create the AppImage
+# Create AppImage using linuxdeploy
 echo "Creating AppImage..."
 cd "${BUILD_DIR}"
 if [ ! -f linuxdeploy-x86_64.AppImage ]; then
@@ -145,7 +117,6 @@ fi
 
 ./linuxdeploy-x86_64.AppImage --appdir="${APPIMAGE_DIR}" --output appimage
 
-# Move the AppImage to the project root
+# Move result to project root
 mv "${APP_NAME}"*.AppImage "${APP_DIR}/"
-
 echo "Build complete! AppImage created at: ${APP_DIR}/${APP_NAME}"*.AppImage
