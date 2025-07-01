@@ -32,6 +32,9 @@ jobs:
             libcairo2-dev pkg-config python3-dev wget fakeroot \
             libgtk-3-dev libglib2.0-dev libpango1.0-dev \
             libgirepository1.0-dev
+          sudo apt-get update && sudo apt-get install -y \
+            libsdl2-dev libsmpeg-dev libasound2-dev libpulse-dev libsndfile1-dev
+
 
       - name: Install Python dependencies
         run: |
