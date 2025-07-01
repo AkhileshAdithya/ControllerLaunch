@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <!-- Background circle -->
+  <circle cx="128" cy="128" r="120" fill="#2c3e50"/>
+  
+  <!-- Controller body -->
+  <g transform="translate(48, 64)">
+    <path d="M80 20 C110 20, 140 40, 140 70 C140 100, 110 120, 80 120 C50 120, 20 100, 20 70 C20 40, 50 20, 80 20 Z" 
+          fill="#3498db" stroke="#ecf0f1" stroke-width="4"/>
+    
+    <!-- D-Pad -->
+    <rect x="30" y="60" width="30" height="10" rx="2" fill="#ecf0f1"/>
+    <rect x="40" y="50" width="10" height="30" rx="2" fill="#ecf0f1"/>
+    
+    <!-- Buttons -->
+    <circle cx="120" cy="50" r="8" fill="#e74c3c"/>
+    <circle cx="105" cy="65" r="8" fill="#2ecc71"/>
+    <circle cx="135" cy="65" r="8" fill="#f1c40f"/>
+    <circle cx="120" cy="80" r="8" fill="#9b59b6"/>
+    
+    <!-- Analog Sticks -->
+    <circle cx="60" cy="40" r="10" fill="#7f8c8d" stroke="#ecf0f1" stroke-width="2"/>
+    <circle cx="100" cy="90" r="10" fill="#7f8c8d" stroke="#ecf0f1" stroke-width="2"/>
+  </g>
+  
+  <!-- Play symbol -->
+  <polygon points="128,75 163,128 128,181" fill="#e74c3c" stroke="#ecf0f1" stroke-width="2"/>
+</svg>

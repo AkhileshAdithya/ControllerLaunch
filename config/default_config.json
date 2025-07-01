@@ -1,0 +1,44 @@
+{
+    "general": {
+        "autostart": true,
+        "minimize_to_tray": true
+    },
+    "controller": {
+        "long_press_duration": 1.0,
+        "enabled_controllers": ["xbox", "playstation"],
+        "button_mapping": {
+            "xbox": {
+                "up": "UP",
+                "down": "DOWN",
+                "left": "LEFT",
+                "right": "RIGHT",
+                "select": "A",
+                "back": "B",
+                "menu": "START"
+            },
+            "playstation": {
+                "up": "UP",
+                "down": "DOWN",
+                "left": "LEFT", 
+                "right": "RIGHT",
+                "select": "X",
+                "back": "CIRCLE",
+                "menu": "OPTIONS"
+            }
+        }
+    },
+    "games": {
+        "paths": {
+            "steam": ["~/.steam", "~/.local/share/Steam"],
+            "flatpak": ["/var/lib/flatpak/app"],
+            "lutris": ["~/.local/share/lutris"],
+            "custom": []
+        },
+        "max_games_shown": 10,
+        "recently_launched": []
+    },
+    "ui": {
+        "opacity": 0.9,
+        "show_game_art": true
+    }
+}

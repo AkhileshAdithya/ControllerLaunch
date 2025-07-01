@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=ControllerLaunch
+Comment=Controller-friendly game launcher
+Exec=controller-launch
+Icon=controller-launch
+Terminal=false
+Categories=Game;Utility;
+Keywords=game;controller;launcher;
+StartupNotify=true
